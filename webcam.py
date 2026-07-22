@@ -178,12 +178,7 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
     actual_w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     actual_h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    # Recorte central para 3:4 (w:h = 0.75)
-    # Ex.: 640x480 → crop width para 360 → 360x480
-    crop_w = int(actual_h * 3 / 4)
-    crop_x = (actual_w - crop_w) // 2   # margem a remover de cada lado
-
-    print(f"Camera {camera_idx}: {actual_w}x{actual_h} -> crop {crop_w}x{actual_h} (3:4)")
+    print(f"Camera {camera_idx}: {actual_w}x{actual_h}")
     print(f"Target: {target_fps}fps  |  Limiar: {threshold}")
     print("Pressione 'q' para sair, 's' para salvar frame.\n")
 
@@ -202,15 +197,12 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
     # alguns backends do OpenCV (GTK, Qt) em Linux
     WIN = "Liveness MiniFASNet  |  q=sair  s=salvar"
     cv2.namedWindow(WIN, cv2.WINDOW_NORMAL)
-    cv2.resizeWindow(WIN, crop_w, actual_h)
+    cv2.resizeWindow(WIN, actual_w, actual_h)
 
     while True:
         ret, frame = cap.read()
         if not ret or frame is None or frame.size == 0:
             continue
-
-        # Recorte central landscape → portrait 3:4
-        frame = frame[:, crop_x: crop_x + crop_w]
 
         now = time.perf_counter()
 
