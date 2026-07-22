@@ -134,20 +134,23 @@ class LivenessPredictor:
         return probs
 
     def predict_ensemble(self, img: np.ndarray,
-                         cropper) -> tuple[int, float, np.ndarray]:
+                         cropper,
+                         threshold: float = 0.7) -> tuple[int, float, list[int], list[dict]]:
         """
         Run all models in models_dir and fuse by summing their softmax outputs.
 
         Returns:
-            label (int):  1 = real, 0 = fake
-            score (float): confidence in [0, 1]
-            bbox (list):  [x, y, w, h] of the detected face
+            label (int):   1=real, 0=fake, -1=inconclusive (score < threshold)
+            score (float): média da probabilidade da classe vencedora em [0, 1]
+            bbox (list):   [x, y, w, h] of the detected face
+            per_model (list[dict]): scores individuais de cada modelo
         """
-        from .cropper import CropImage  # avoid circular import at module level
         bbox = self.get_bbox(img)
+        pth_files = sorted(self.models_dir.glob("*.pth"))
         fused = np.zeros((1, 3))
+        per_model = []
 
-        for pth in sorted(self.models_dir.glob("*.pth")):
+        for pth in pth_files:
             h, w, _, scale = parse_model_name(pth.name)
             patch = cropper.crop(
                 org_img=img, bbox=bbox,
@@ -155,8 +158,17 @@ class LivenessPredictor:
                 out_w=w, out_h=h,
                 crop=(scale is not None),
             )
-            fused += self.predict(patch, pth)
+            probs = self.predict(patch, pth)
+            fused += probs
+            per_model.append({
+                "name": pth.stem,
+                "fake": float(probs[0, 0]),
+                "real": float(probs[0, 1]),
+            })
 
-        label = int(np.argmax(fused))
-        score = float(fused[0, label] / len(list(self.models_dir.glob("*.pth"))))
-        return label, score, bbox
+        # Só considera classes 0 (fake) e 1 (real) — classe 2 é artefato de treino.
+        # Ver docs/07_uso-dos-modelos.md
+        winner = int(np.argmax(fused[:, :2]))
+        score  = float(fused[0, winner] / len(pth_files))
+        label  = winner if score >= threshold else -1
+        return label, score, bbox, per_model

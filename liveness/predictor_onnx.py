@@ -83,14 +83,17 @@ class LivenessPredictorONNX:
         return _softmax(logits)
 
     def predict_ensemble(self, img: np.ndarray,
-                         cropper) -> tuple[int, float, list[int]]:
+                         cropper,
+                         threshold: float = 0.7) -> tuple[int, float, list[int], list[dict]]:
         """
-        Roda todos os modelos .onnx em ensemble e retorna (label, score, bbox).
-        label: 1 = rosto real, 0 = fake.
+        Roda todos os modelos .onnx em ensemble e retorna (label, score, bbox, per_model).
+        label: 1=real, 0=fake, -1=inconclusivo (score < threshold).
+        per_model: lista de dicts com name, fake, real para cada modelo.
         """
         bbox = self.get_bbox(img)
         onnx_files = sorted(self.models_dir.glob("*.onnx"))
         fused = np.zeros((1, 3), dtype=np.float32)
+        per_model = []
 
         for onnx_path in onnx_files:
             h, w, _, scale = parse_model_name(onnx_path.name)
@@ -100,8 +103,17 @@ class LivenessPredictorONNX:
                 out_w=w, out_h=h,
                 crop=(scale is not None),
             )
-            fused += self.predict(patch, onnx_path)
+            probs = self.predict(patch, onnx_path)
+            fused += probs
+            per_model.append({
+                "name": onnx_path.stem,
+                "fake": float(probs[0, 0]),
+                "real": float(probs[0, 1]),
+            })
 
-        label = int(np.argmax(fused))
-        score = float(fused[0, label] / len(onnx_files))
-        return label, score, bbox
+        # Só considera classes 0 (fake) e 1 (real) — classe 2 é artefato de treino.
+        # Ver docs/07_uso-dos-modelos.md
+        winner = int(np.argmax(fused[:, :2]))
+        score  = float(fused[0, winner] / len(onnx_files))
+        label  = winner if score >= threshold else -1
+        return label, score, bbox, per_model

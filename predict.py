@@ -49,6 +49,7 @@ def check_aspect_ratio(img: np.ndarray) -> None:
 
 def annotate_and_save(img: np.ndarray, bbox: list, label: int, score: float,
                       output_path: Path) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     color      = (255, 0, 0) if label == 1 else (0, 0, 255)
     tag        = f"{'Real' if label == 1 else 'Fake'} Face  {score:.2f}"
     font_scale = 0.5 * img.shape[0] / 1024
@@ -63,7 +64,8 @@ def annotate_and_save(img: np.ndarray, bbox: list, label: int, score: float,
     print(f"Resultado salvo → {output_path}")
 
 
-def run(image_path: Path, backend: str, device: str, save: bool) -> None:
+def run(image_path: Path, backend: str, device: str, save: bool,
+        output_dir: Path | None = None, threshold: float = 0.7) -> None:
     img = cv2.imread(str(image_path))
     if img is None:
         sys.exit(f"ERRO: não foi possível ler a imagem: {image_path}")
@@ -88,19 +90,28 @@ def run(image_path: Path, backend: str, device: str, save: bool) -> None:
         )
 
     t0 = time.perf_counter()
-    label, score, bbox = predictor.predict_ensemble(img, cropper)
+    result = predictor.predict_ensemble(img, cropper, threshold=threshold)
     elapsed = time.perf_counter() - t0
 
-    verdict = "Real Face" if label == 1 else "Fake Face"
+    label, score, bbox = result[0], result[1], result[2]
+    per_model = result[3] if len(result) > 3 else None
+
+    verdict = {1: "Real Face", 0: "Fake Face"}.get(label, "Inconclusive")
     print(f"\nImagem  : {image_path.name}")
     print(f"Backend : {backend}")
     print(f"Result  : {verdict}")
     print(f"Score   : {score:.4f}")
+    if per_model:
+        print(f"Modelos :")
+        for m in per_model:
+            print(f"  {m['name']}")
+            print(f"    fake={m['fake']:.4f}  real={m['real']:.4f}")
     print(f"BBox    : x={bbox[0]}, y={bbox[1]}, w={bbox[2]}, h={bbox[3]}")
     print(f"Tempo   : {elapsed:.3f}s\n")
 
     if save:
-        out = image_path.parent / f"{image_path.stem}_result{image_path.suffix}"
+        dest = output_dir if output_dir else image_path.parent
+        out  = dest / f"{image_path.stem}_result{image_path.suffix}"
         annotate_and_save(img.copy(), bbox, label, score, out)
 
 
@@ -114,12 +125,17 @@ def main() -> None:
                         help="Salvar imagem anotada com bbox e score")
     parser.add_argument("--device",  default="cpu",
                         help="Dispositivo torch: cpu | cuda:0  (só backend pytorch)")
+    parser.add_argument("--output-dir", type=Path, default=None,
+                        help="Pasta de destino para imagens anotadas (default: mesma da imagem)")
+    parser.add_argument("--threshold", type=float, default=0.7,
+                        help="Score mínimo para aceitar a decisão (default: 0.7). "
+                             "Abaixo disso o resultado é 'Inconclusive'.")
     args = parser.parse_args()
 
     if not args.image.exists():
         sys.exit(f"ERRO: imagem não encontrada: {args.image}")
 
-    run(args.image, args.backend, args.device, args.save)
+    run(args.image, args.backend, args.device, args.save, args.output_dir, args.threshold)
 
 
 if __name__ == "__main__":
