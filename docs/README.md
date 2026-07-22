@@ -15,6 +15,7 @@ o repo original para Python/PyTorch modernos.
 | `07_uso-dos-modelos.md` | Referência técnica: input/output, arquiteturas, como chamar |
 | `08_plano-de-treinamento.md` | Plano completo: coleta, dataset, fine-tuning, métricas |
 | `09_plano-de-captura-dataset.md` | Metodologia de captura: matriz de variação, PAIs, split, anti-viés |
+| `10_plano-dataset-publico.md` | Validar o pipeline com CelebA-Spoof antes da coleta própria |
 
 ## Convenção
 
