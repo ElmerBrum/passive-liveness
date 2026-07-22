@@ -162,8 +162,8 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
 
     # 640x480 é o modo landscape padrão suportado pela maioria das webcams.
     # Depois recortamos para 3:4 (360x480) que é a proporção do treino do modelo.
-    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  640)
-    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     cap.set(cv2.CAP_PROP_FPS, target_fps)
 
     # Lê frames de teste para confirmar que a câmera está funcionando
