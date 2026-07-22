@@ -1,0 +1,24 @@
+# Python >= 3.10
+# Tested with: torch 2.13, opencv 4.10, numpy 2.2, onnxruntime 1.23
+# Install with:  pip install -r requirements.txt
+
+# Deep learning (necessário para treino e backend pytorch)
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Computer vision
+# NOTE: opencv-python 5.x removeu readNetFromCaffe (suporte a Caffe DNN).
+# O detector facial usa um .caffemodel — pinamos em 4.x.
+# Ver docs/03_opencv-caffe-removal.md
+opencv-python>=4.8.0,<5.0.0
+
+# Image I/O
+Pillow>=10.0.0
+
+# Numerics
+numpy>=1.24.0
+
+# ONNX — conversão e inferência sem PyTorch em runtime
+onnx>=1.14.0
+onnxruntime>=1.16.0   # suporte a opset 18
+onnxscript>=0.1.0     # exigido pelo exporter torch.onnx do torch >= 2.x
