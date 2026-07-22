@@ -13,6 +13,7 @@ o repo original para Python/PyTorch modernos.
 | `05_ensemble-e-scores.md` | Como os dois modelos são combinados e como ler os scores |
 | `06_onnx-conversion.md` | Conversão .pth → .onnx: opset, dynamo, equivalência |
 | `07_uso-dos-modelos.md` | Referência técnica: input/output, arquiteturas, como chamar |
+| `08_plano-de-treinamento.md` | Plano completo: coleta, dataset, fine-tuning, métricas |
 
 ## Convenção
 
