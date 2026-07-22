@@ -183,7 +183,7 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
     crop_w = int(actual_h * 3 / 4)
     crop_x = (actual_w - crop_w) // 2   # margem a remover de cada lado
 
-    print(f"Câmera {camera_idx}: {actual_w}×{actual_h} → crop {crop_w}×{actual_h} (3:4)")
+    print(f"Camera {camera_idx}: {actual_w}x{actual_h} -> crop {crop_w}x{actual_h} (3:4)")
     print(f"Target: {target_fps}fps  |  Limiar: {threshold}")
     print("Pressione 'q' para sair, 's' para salvar frame.\n")
 
@@ -197,6 +197,12 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
     display_fps = 0.0
 
     save_dir = PROJECT_ROOT / "images" / "custom"
+
+    # Nome ASCII puro — caracteres Unicode no título da janela quebram
+    # alguns backends do OpenCV (GTK, Qt) em Linux
+    WIN = "Liveness MiniFASNet  |  q=sair  s=salvar"
+    cv2.namedWindow(WIN, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(WIN, crop_w, actual_h)
 
     while True:
         ret, frame = cap.read()
@@ -214,8 +220,8 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
             last_submit = now
 
         result, inference_ms = worker.get_result()
-        frame = draw_overlay(frame, result, inference_ms, display_fps, threshold)
-        cv2.imshow("Liveness — MiniFASNet (q=sair  s=salvar)", frame)
+        display = draw_overlay(frame.copy(), result, inference_ms, display_fps, threshold)
+        cv2.imshow(WIN, display)
 
         # FPS do display
         fps_counter += 1
@@ -224,14 +230,19 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
             fps_counter = 0
             fps_ts      = now
 
-        key = cv2.waitKey(1) & 0xFF
+        # waitKey consume a fila de eventos do backend gráfico.
+        # Usamos o tempo restante do budget do frame para não gastar CPU à toa.
+        elapsed_ms = (time.perf_counter() - now) * 1000
+        wait_ms    = max(1, int(frame_ms - elapsed_ms))
+        key = cv2.waitKey(wait_ms) & 0xFF
+
         if key == ord('q'):
             break
         if key == ord('s'):
             ts   = datetime.now().strftime("%Y%m%d_%H%M%S")
             path = save_dir / f"webcam_{ts}.jpg"
             cv2.imwrite(str(path), frame)
-            print(f"Frame salvo → {path}")
+            print(f"Frame salvo -> {path}")
 
     cap.release()
     cv2.destroyAllWindows()
