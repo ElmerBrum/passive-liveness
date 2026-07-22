@@ -14,6 +14,7 @@ o repo original para Python/PyTorch modernos.
 | `06_onnx-conversion.md` | Conversão .pth → .onnx: opset, dynamo, equivalência |
 | `07_uso-dos-modelos.md` | Referência técnica: input/output, arquiteturas, como chamar |
 | `08_plano-de-treinamento.md` | Plano completo: coleta, dataset, fine-tuning, métricas |
+| `09_plano-de-captura-dataset.md` | Metodologia de captura: matriz de variação, PAIs, split, anti-viés |
 
 ## Convenção
 
