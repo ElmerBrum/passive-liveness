@@ -7,3 +7,8 @@ __pycache__/
 .DS_Store
 images/custom/*
 images/sample/*_result.*
+
+# training artifacts (generated / potentially biometric-derived)
+training/data/
+training/runs/
+datasets/
