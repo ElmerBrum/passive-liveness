@@ -1,5 +1,9 @@
 # Docs — índice
 
+> ⚠️ **Conteúdo gerado com apoio de IA** — pode conter erros ou estar incompleto,
+> especialmente sobre datasets, licenças e detalhes de treinamento. Questione,
+> confira as fontes citadas e teste antes de confiar.
+
 Cada arquivo documenta uma decisão ou mudança específica feita ao adaptar
 o repo original para Python/PyTorch modernos.
 
