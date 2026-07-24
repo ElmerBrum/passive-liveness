@@ -76,12 +76,28 @@ class InferenceWorker:
         self._cropper  = CropImage()
         self._threshold = threshold
 
+        # Falha cedo e claro se a pasta de modelos estiver vazia — senão a
+        # inferência quebraria em todo frame e a tela ficaria "Aguardando...".
+        pattern = "*.onnx" if backend == "onnx" else "*.pth"
+        found = list(Path(models_dir).glob(pattern))
+        if not found:
+            raise SystemExit(
+                f"ERRO: nenhum modelo '{pattern}' em {models_dir}.\n"
+                f"  - backend '{backend}' procura por {pattern}.\n"
+                f"  - para o modelo treinado rode primeiro:\n"
+                f"      python training/export_and_check.py --checkpoint <best.pth>"
+                f"{' --onnx' if backend == 'onnx' else ''}\n"
+                f"  - ou use a pasta padrão resources/models (sem --models-dir)."
+            )
+        print(f"Modelos ({backend}): {[f.name for f in found]}")
+
         # Estado compartilhado
         self._lock         = threading.Lock()
         self._latest_frame = None   # frame para processar
         self._frame_ready  = threading.Event()
         self.result        = None   # último resultado válido
         self.inference_ms  = 0.0
+        self._last_err_ts  = 0.0    # rate-limit de logs de erro
 
         self._thread = threading.Thread(target=self._loop, daemon=True)
         self._thread.start()
@@ -114,9 +130,16 @@ class InferenceWorker:
                     self.result       = (label, score, bbox, per_model)
                     self.inference_ms = elapsed_ms
 
-            except Exception:
-                # Face não detectada ou erro de runtime — mantém último resultado
-                pass
+            except Exception as e:
+                # Não engolir o erro em silêncio: se a inferência falha em TODO
+                # frame o usuário só vê "Aguardando deteccao..." para sempre.
+                # Imprime o traceback uma vez e depois no máximo a cada 3s.
+                now = time.perf_counter()
+                if now - self._last_err_ts > 3.0:
+                    self._last_err_ts = now
+                    import traceback
+                    print(f"\n[worker] erro na inferência: {e}")
+                    traceback.print_exc()
 
     def get_result(self):
         with self._lock:
