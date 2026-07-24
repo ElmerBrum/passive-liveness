@@ -69,9 +69,29 @@ python training/prepare_public_dataset.py --celeba-root /path/to/CelebA_Spoof \
 # 2. train
 python training/train.py           # uses config.py defaults
 
-# 3. evaluate
-python training/evaluate.py --checkpoint training/runs/best.pth
+# 3. evaluate (APCER/BPCER/ACER on the test split)
+python training/evaluate.py --checkpoint training/runs/<run>/best.pth
+
+# 4. export into the inference pipeline + sign sanity-check on sample images
+python training/export_and_check.py --checkpoint training/runs/<run>/best.pth --onnx
+#   writes training/exported_models/2.7_80x80_MiniFASNetV2SE.pth (+ .onnx) and
+#   prints the live score for known real/fake samples (real→high, fake→low).
+
+# 5. run the trained model through the real inference path
+python predict.py --image images/sample/image_T1.jpg \
+    --backend pytorch --models-dir training/exported_models
+python webcam.py --backend pytorch --models-dir training/exported_models
 ```
+
+> The trained model is binary (`num_classes=2`) and single-scale (2.7×), so it is
+> NOT the original 3-class ensemble. `predict.py`/`webcam.py` infer the class count
+> from the checkpoint, so pointing `--models-dir` at `training/exported_models`
+> (which contains only this one model) runs it standalone.
+>
+> **Reminder:** this model was trained on CelebA-Spoof, not your webcam. Wrong
+> verdicts on the repo samples or your camera are most likely **domain shift**,
+> not a sign bug — the sign is confirmed if `export_and_check` shows real>0.5 and
+> fake<0.5 on the samples, and separately by the ~0.99 AUC in evaluate.py.
 
 ## Hardware — RTX 5070 (Blackwell, sm_120)
 

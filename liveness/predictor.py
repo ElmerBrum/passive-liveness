@@ -86,7 +86,6 @@ class LivenessPredictor:
 
         h, w, model_type, _ = parse_model_name(model_path.name)
         kernel = get_kernel(h, w)
-        model = MODEL_REGISTRY[model_type](conv6_kernel=kernel).to(self.device)
 
         # weights_only=False: these checkpoints contain Python objects (OrderedDict).
         # We trust this specific file; in production you'd verify the source.
@@ -99,6 +98,14 @@ class LivenessPredictor:
             state_dict = OrderedDict(
                 (k[len('module.'):], v) for k, v in state_dict.items()
             )
+
+        # Infer num_classes from the classifier head shape so both the original
+        # 3-class models and our fine-tuned binary (2-class) models load. The
+        # final layer is `prob = Linear(embedding, num_classes)` → 'prob.weight'
+        # has shape (num_classes, embedding).
+        num_classes = state_dict["prob.weight"].shape[0]
+        model = MODEL_REGISTRY[model_type](
+            conv6_kernel=kernel, num_classes=num_classes).to(self.device)
 
         model.load_state_dict(state_dict)
         model.eval()
@@ -147,7 +154,7 @@ class LivenessPredictor:
         """
         bbox = self.get_bbox(img)
         pth_files = sorted(self.models_dir.glob("*.pth"))
-        fused = np.zeros((1, 3))
+        fused = None                       # sized to the first model's class count
         per_model = []
 
         for pth in pth_files:
@@ -159,7 +166,7 @@ class LivenessPredictor:
                 crop=(scale is not None),
             )
             probs = self.predict(patch, pth)
-            fused += probs
+            fused = probs if fused is None else fused + probs
             per_model.append({
                 "name": pth.stem,
                 "fake": float(probs[0, 0]),

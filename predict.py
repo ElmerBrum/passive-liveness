@@ -65,7 +65,8 @@ def annotate_and_save(img: np.ndarray, bbox: list, label: int, score: float,
 
 
 def run(image_path: Path, backend: str, device: str, save: bool,
-        output_dir: Path | None = None, threshold: float = 0.7) -> None:
+        output_dir: Path | None = None, threshold: float = 0.7,
+        models_dir: Path = MODELS_DIR) -> None:
     img = cv2.imread(str(image_path))
     if img is None:
         sys.exit(f"ERRO: não foi possível ler a imagem: {image_path}")
@@ -78,13 +79,13 @@ def run(image_path: Path, backend: str, device: str, save: bool,
     if backend == "onnx":
         from liveness.predictor_onnx import LivenessPredictorONNX
         predictor = LivenessPredictorONNX(
-            models_dir=MODELS_DIR,
+            models_dir=models_dir,
             detection_model_dir=DETECTION_DIR,
         )
     else:
         from liveness.predictor import LivenessPredictor
         predictor = LivenessPredictor(
-            models_dir=MODELS_DIR,
+            models_dir=models_dir,
             detection_model_dir=DETECTION_DIR,
             device=device,
         )
@@ -130,12 +131,17 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.7,
                         help="Score mínimo para aceitar a decisão (default: 0.7). "
                              "Abaixo disso o resultado é 'Inconclusive'.")
+    parser.add_argument("--models-dir", type=Path, default=MODELS_DIR,
+                        help="Pasta com os modelos (.pth/.onnx). "
+                             "Default: resources/models. Use training/exported_models "
+                             "para testar um modelo treinado.")
     args = parser.parse_args()
 
     if not args.image.exists():
         sys.exit(f"ERRO: imagem não encontrada: {args.image}")
 
-    run(args.image, args.backend, args.device, args.save, args.output_dir, args.threshold)
+    run(args.image, args.backend, args.device, args.save, args.output_dir,
+        args.threshold, args.models_dir)
 
 
 if __name__ == "__main__":

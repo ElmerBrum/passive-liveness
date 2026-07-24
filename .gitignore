@@ -11,4 +11,5 @@ images/sample/*_result.*
 # training artifacts (generated / potentially biometric-derived)
 training/data/
 training/runs/
+training/exported_models/
 datasets/

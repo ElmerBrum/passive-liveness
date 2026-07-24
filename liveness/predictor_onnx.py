@@ -92,7 +92,7 @@ class LivenessPredictorONNX:
         """
         bbox = self.get_bbox(img)
         onnx_files = sorted(self.models_dir.glob("*.onnx"))
-        fused = np.zeros((1, 3), dtype=np.float32)
+        fused = None                       # sized to the first model's class count
         per_model = []
 
         for onnx_path in onnx_files:
@@ -104,7 +104,7 @@ class LivenessPredictorONNX:
                 crop=(scale is not None),
             )
             probs = self.predict(patch, onnx_path)
-            fused += probs
+            fused = probs if fused is None else fused + probs
             per_model.append({
                 "name": onnx_path.stem,
                 "fake": float(probs[0, 0]),

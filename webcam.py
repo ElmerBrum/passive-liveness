@@ -56,14 +56,23 @@ class InferenceWorker:
     O display thread lê .result sem bloquear.
     """
 
-    def __init__(self, threshold: float):
-        from liveness.predictor_onnx import LivenessPredictorONNX
+    def __init__(self, threshold: float, backend: str = "onnx",
+                 models_dir=MODELS_DIR, device: str = "cpu"):
         from liveness.cropper import CropImage
 
-        self._predictor = LivenessPredictorONNX(
-            models_dir=MODELS_DIR,
-            detection_model_dir=DETECTION_DIR,
-        )
+        if backend == "pytorch":
+            from liveness.predictor import LivenessPredictor
+            self._predictor = LivenessPredictor(
+                models_dir=models_dir,
+                detection_model_dir=DETECTION_DIR,
+                device=device,
+            )
+        else:
+            from liveness.predictor_onnx import LivenessPredictorONNX
+            self._predictor = LivenessPredictorONNX(
+                models_dir=models_dir,
+                detection_model_dir=DETECTION_DIR,
+            )
         self._cropper  = CropImage()
         self._threshold = threshold
 
@@ -155,7 +164,8 @@ def draw_overlay(frame: np.ndarray, result, inference_ms: float,
     return frame
 
 
-def run(camera_idx: int, target_fps: int, threshold: float) -> None:
+def run(camera_idx: int, target_fps: int, threshold: float,
+        backend: str = "onnx", models_dir=MODELS_DIR, device: str = "cpu") -> None:
     cap = cv2.VideoCapture(camera_idx)
     if not cap.isOpened():
         sys.exit(f"ERRO: não foi possível abrir a câmera {camera_idx}.")
@@ -182,7 +192,8 @@ def run(camera_idx: int, target_fps: int, threshold: float) -> None:
     print(f"Target: {target_fps}fps  |  Limiar: {threshold}")
     print("Pressione 'q' para sair, 's' para salvar frame.\n")
 
-    worker      = InferenceWorker(threshold)
+    worker      = InferenceWorker(threshold, backend=backend,
+                                  models_dir=models_dir, device=device)
     frame_ms    = 1000 / target_fps
     last_submit = 0.0
 
@@ -248,8 +259,16 @@ def main() -> None:
                         help="FPS alvo (default: 15)")
     parser.add_argument("--threshold",  type=float, default=0.7,
                         help="Score mínimo para aceitar decisão (default: 0.7)")
+    parser.add_argument("--backend",    default="onnx", choices=["onnx", "pytorch"],
+                        help="onnx (default) ou pytorch")
+    parser.add_argument("--models-dir", type=Path, default=MODELS_DIR,
+                        help="Pasta com os modelos. Default: resources/models. "
+                             "Use training/exported_models para um modelo treinado.")
+    parser.add_argument("--device",     default="cpu",
+                        help="cpu | cuda:0 (só backend pytorch)")
     args = parser.parse_args()
-    run(args.camera, args.target_fps, args.threshold)
+    run(args.camera, args.target_fps, args.threshold,
+        args.backend, args.models_dir, args.device)
 
 
 if __name__ == "__main__":
